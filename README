@@ -1,0 +1,4 @@
+This is some sample code that is to be kept for future reference.
+The .py file is to be run. It generates the out.dot file (to be used with a program like graphviz) as well as prints the list of insertion queries that store the graph
+The .sql file contains the setup to make the table, some demo insertion queries and all of the work that allows the queries to work on the table task
+Each .sql function has a explanation comment before it as well as some demo code after it with a comment that explains some use cases for that function.
