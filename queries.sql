@@ -1,3 +1,4 @@
+﻿SET SEARCH_PATH="atrt_common";
 
 DROP TABLE IF EXISTS task;
 CREATE TABLE task (
@@ -6,6 +7,8 @@ CREATE TABLE task (
 	data   	TEXT
 );
 
+COPY task(parent, node, data)
+FROM 'C:\Users\rseedorf\PycharmProjects\postgres_adj_list\data.csv' DELIMITER ',' CSV HEADER;
 
 -- INSERT INTO task VALUES 		--
 -- (NULL, 5, MD5(random()::text)),	--	  (5)
@@ -21,63 +24,6 @@ CREATE TABLE task (
 -- (4, 9, MD5(random()::text)),		--	     (0)
 -- (6, 9, MD5(random()::text)),		--
 -- (9, 0, MD5(random()::text));		--
-
-INSERT INTO task VALUES
-(NULL, -1, MD5(random()::Text)),
-(-1, 0, MD5(random()::text)),
-(-1, 1, MD5(random()::text)),
-(-1, 2, MD5(random()::text)),
-(-1, 3, MD5(random()::text)),
-(1, 4, MD5(random()::text)),
-(1, 5, MD5(random()::text)),
-(1, 6, MD5(random()::text)),
-(2, 4, MD5(random()::text)),
-(2, 6, MD5(random()::text)),
-(3, 4, MD5(random()::text)),
-(2, 8, MD5(random()::text)),
-(2, 9, MD5(random()::text)),
-(3, 7, MD5(random()::text)),
-(4, 7, MD5(random()::text)),
-(4, 8, MD5(random()::text)),
-(0, 10, MD5(random()::text)),
-(0, 11, MD5(random()::text)),
-(1, 11, MD5(random()::text)),
-(2, 10, MD5(random()::text)),
-(5, 10, MD5(random()::text)),
-(5, 11, MD5(random()::text)),
-(6, 10, MD5(random()::text)),
-(6, 11, MD5(random()::text)),
-(0, 12, MD5(random()::text)),
-(0, 13, MD5(random()::text)),
-(0, 14, MD5(random()::text)),
-(3, 12, MD5(random()::text)),
-(3, 13, MD5(random()::text)),
-(3, 14, MD5(random()::text)),
-(4, 14, MD5(random()::text)),
-(4, 15, MD5(random()::text)),
-(6, 12, MD5(random()::text)),
-(6, 14, MD5(random()::text)),
-(10, 14, MD5(random()::text)),
-(10, 15, MD5(random()::text)),
-(11, 12, MD5(random()::text)),
-(11, 14, MD5(random()::text)),
-(0, 17, MD5(random()::text)),
-(1, 16, MD5(random()::text)),
-(1, 17, MD5(random()::text)),
-(2, 18, MD5(random()::text)),
-(5, 19, MD5(random()::text)),
-(7, 16, MD5(random()::text)),
-(7, 19, MD5(random()::text)),
-(8, 18, MD5(random()::text)),
-(10, 18, MD5(random()::text)),
-(11, 17, MD5(random()::text)),
-(11, 18, MD5(random()::text)),
-(11, 19, MD5(random()::text)),
-(12, 16, MD5(random()::text)),
-(12, 17, MD5(random()::text)),
-(12, 18, MD5(random()::text)),
-(13, 17, MD5(random()::text)),
-(15, 17, MD5(random()::text));
 
 SELECT * FROM task
 
@@ -103,7 +49,7 @@ SELECT DISTINCT traverse.node FROM traverse;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_children(2);
+SELECT * FROM get_all_children(5);
 
 
 -------------------------------
@@ -128,7 +74,7 @@ SELECT DISTINCT traverse.parent FROM traverse;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_parents(2);
+SELECT * FROM get_all_parents(5);
 
 
 -------------------------------
@@ -159,7 +105,7 @@ SELECT * FROM get_all_children_depth(-1);
 
 -- get all children within 2 generations
 SELECT * FROM get_all_children_depth(6)
-WHERE depth < 2;
+WHERE depth <= 2;
 
 
 -------------------------------
