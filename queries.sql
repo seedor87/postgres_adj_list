@@ -1,5 +1,4 @@
-﻿SET SEARCH_PATH="atrt_common";
-
+﻿
 DROP TABLE IF EXISTS task;
 CREATE TABLE task (
 	parent 	INT,
@@ -10,22 +9,17 @@ CREATE TABLE task (
 COPY task(parent, node, data)
 FROM 'C:\Users\rseedorf\PycharmProjects\postgres_adj_list\data.csv' DELIMITER ',' CSV HEADER;
 
--- INSERT INTO task VALUES 		--
--- (NULL, 5, MD5(random()::text)),	--	  (5)
--- (5, 3, MD5(random()::text)),		--	   |
--- (3, 1, MD5(random()::text)),		--        (3)
--- (3, 8, MD5(random()::text)),		--       /   \
--- (1, 2, MD5(random()::text)),		--     (1)   (8)
--- (1, 4, MD5(random()::text)),		--     /  \ / | \
--- (8, 4, MD5(random()::text)),		--   (2)  (4) |  (6)
--- (8, 9, MD5(random()::Text)),		--	  / \ | /
--- (8, 6, MD5(random()::text)),		--	(7)  (9)
--- (4, 7, MD5(random()::text)),		--            |
--- (4, 9, MD5(random()::text)),		--	     (0)
--- (6, 9, MD5(random()::text)),		--
--- (9, 0, MD5(random()::text));		--
+INSERT INTO task (parent, node, data)
+VALUES (305, -1, 'AAAAAAAAAA');
 
-SELECT * FROM task
+DELETE FROM task
+WHERE parent = 305 AND node = -1;
+
+SELECT count(*) FROM get_all_children(-1);
+
+SELECT * FROM task;
+
+SELECT * FROM parent_first_full_graph_traversal();
 
 -------------------------------
 -- result set of all children
@@ -33,15 +27,14 @@ DROP FUNCTION IF EXISTS get_all_children(input_id INT);
 CREATE OR REPLACE FUNCTION get_all_children (input_id INT)
 	 RETURNS TABLE (
 	 child INT
-)
-AS $$
-BEGIN
-RETURN QUERY
+) AS $$
+BEGIN RETURN QUERY
 WITH RECURSIVE traverse(node) AS (
 	SELECT task.node FROM task
 	WHERE task.parent = input_id
     UNION ALL
-	SELECT task.node FROM task
+	SELECT task.node
+	FROM task
 	INNER JOIN traverse
 	ON task.parent = traverse.node
 )
@@ -49,7 +42,7 @@ SELECT DISTINCT traverse.node FROM traverse;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_children(5);
+SELECT * FROM get_all_children(-1);
 
 
 -------------------------------
@@ -74,7 +67,7 @@ SELECT DISTINCT traverse.parent FROM traverse;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_parents(5);
+SELECT * FROM get_all_parents(60);
 
 
 -------------------------------
@@ -104,7 +97,7 @@ LANGUAGE 'plpgsql';
 SELECT * FROM get_all_children_depth(-1);
 
 -- get all children within 2 generations
-SELECT * FROM get_all_children_depth(6)
+SELECT * FROM get_all_children_depth(-1)
 WHERE depth <= 2;
 
 
@@ -132,7 +125,7 @@ ORDER BY traverse.depth ASC;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_parents_depth(13);
+SELECT * FROM get_all_parents_depth(249);
 
 
 -------------------------------
@@ -249,7 +242,7 @@ SELECT * FROM child_first_full_graph_traversal();
 -- get all distinct ancestors given descendent
 SELECT DISTINCT ancestor
 FROM child_first_full_graph_traversal(), LATERAL unnest(path) ancestor
-WHERE child = 4
+WHERE child = 57
 
 -------------------------------
 -- Child to Parent Traversal
@@ -285,10 +278,10 @@ ORDER BY MAX(array_length(traverse.path, 1));
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM child_to_parent_traversal(13, 1);
+SELECT * FROM child_to_parent_traversal(171, -1);
 
 -- empty set confirms that there is no relation from child to parent
-SELECT * FROM child_to_parent_traversal(5, 1); -- ie cant get from 5 to 1
+SELECT * FROM child_to_parent_traversal(57, -1); -- ie cant get from 5 to 1
 
 -------------------------------
 -- Parent to Child Traversal
@@ -406,6 +399,6 @@ UNION ALL
 SELECT * FROM all_parents_within_n(6,2);
 
 -- get all children of 6 within 3 generations that are at least 1 gen away
-SELECT * FROM all_children_within_n(6, 3)
+SELECT * FROM all_children_within_n(8, 3)
 EXCEPT
-SELECT * FROM all_children_within_n(6, 1);
+SELECT * FROM all_children_within_n(8, 1);
