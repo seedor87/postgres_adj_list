@@ -4,10 +4,12 @@ The .sql file contains the setup to make the table, some demo insertion queries 
 Each .sql function has a explanation comment before it as well as some demo code after it with a comment that explains some use cases for that function.
 
 RESOURCES:
+
     on adj list in postgres
     https://www.fusionbox.com/blog/detail/graph-algorithms-in-a-database-recursive-ctes-and-topological-sort-with-postgres/620/
 
-    on ltree (not this project)
+    on ltree
+    https://www.postgresql.org/docs/9.4/ltree.html (should be accessible from on network)
     https://dzone.com/articles/saving-a-tree-in-postgres-using-ltree
     https://leopard.in.ua/2013/09/02/postgresql-ltree#.XL2zDuhKhPY
     http://www.postgresonline.com/journal/archives/173-Using-LTree-to-Represent-and-Query-Hierarchy-and-Tree-Structures.html

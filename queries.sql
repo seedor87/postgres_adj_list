@@ -1,4 +1,5 @@
-﻿
+﻿SET SEARCH_PATH="atrt_common";
+
 DROP TABLE IF EXISTS task;
 CREATE TABLE task (
 	parent 	INT,
@@ -6,20 +7,22 @@ CREATE TABLE task (
 	data   	TEXT
 );
 
+TRUNCATE task;
 COPY task(parent, node, data)
 FROM 'C:\Users\rseedorf\PycharmProjects\postgres_adj_list\data.csv' DELIMITER ',' CSV HEADER;
 
-INSERT INTO task (parent, node, data)
-VALUES (305, -1, 'AAAAAAAAAA');
+--INSERT INTO task (parent, node, data)
+--VALUES (305, -1, 'AAAAAAAAAA');
 
-DELETE FROM task
-WHERE parent = 305 AND node = -1;
-
-SELECT count(*) FROM get_all_children(-1);
+--DELETE FROM task
+--WHERE parent = 305 AND node = -1;
 
 SELECT * FROM task;
 
+SELECT count(*) FROM get_all_children(-1);
+
 SELECT * FROM parent_first_full_graph_traversal();
+SELECT * FROM child_first_full_graph_traversal();
 
 -------------------------------
 -- result set of all children
@@ -42,7 +45,7 @@ SELECT DISTINCT traverse.node FROM traverse;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_children(-1);
+SELECT * FROM get_all_children(0);
 
 
 -------------------------------
@@ -67,7 +70,7 @@ SELECT DISTINCT traverse.parent FROM traverse;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_parents(60);
+SELECT * FROM get_all_parents(20);
 
 
 -------------------------------
@@ -94,11 +97,11 @@ ORDER BY traverse.depth ASC;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_children_depth(-1);
+SELECT * FROM get_all_children_depth(0);
 
 -- get all children within 2 generations
-SELECT * FROM get_all_children_depth(-1)
-WHERE depth <= 2;
+SELECT * FROM get_all_children_depth(0)
+WHERE depth <= 4;
 
 
 -------------------------------
@@ -125,7 +128,7 @@ ORDER BY traverse.depth ASC;
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM get_all_parents_depth(249);
+SELECT * FROM get_all_parents_depth(48);
 
 
 -------------------------------
@@ -169,20 +172,26 @@ DROP FUNCTION IF EXISTS parent_first_full_graph_traversal();
 CREATE OR REPLACE FUNCTION parent_first_full_graph_traversal ()
 	 RETURNS TABLE (
 	 parent INT,
-	 path INT[]
+	 path LTREE
+	 --path INT[]
 )
 AS $$
 BEGIN
 RETURN QUERY
 WITH RECURSIVE traverse(node, path, cycle) AS (
-        SELECT task.node, ARRAY[task.node], false FROM task
+        SELECT task.node, 
+		text2ltree(task.node::TEXT),
+		--ARRAY[task.node], 
+		false 
+	FROM task
         LEFT OUTER JOIN task AS t2
         ON task.node = t2.parent
         WHERE t2.parent IS NULL
     UNION ALL
         SELECT DISTINCT task.parent,
-               traverse.path || task.parent,
-               task.parent = ANY(traverse.path)
+               traverse.path || task.parent::TEXT,
+               text2ltree(task.parent::TEXT) @> traverse.path
+               --task.parent = ANY(traverse.path)
         FROM traverse
         INNER JOIN task
         ON task.node = traverse.node
@@ -192,7 +201,8 @@ SELECT traverse.node, traverse.path FROM traverse
 LEFT OUTER JOIN traverse AS any_cycles ON any_cycles.cycle = true
 WHERE any_cycles.cycle IS NULL
 GROUP BY traverse.node, traverse.path
-ORDER BY MAX(array_length(traverse.path, 1));
+ORDER BY MAX(nlevel(traverse.path));
+--ORDER BY MAX(array_length(traverse.path, 1));
 END; $$
 LANGUAGE 'plpgsql';
 
@@ -206,43 +216,64 @@ WHERE parent = 4
 
 -------------------------------
 -- Child First Full Graph Traversal
-DROP FUNCTION IF EXISTS child_first_full_graph_traversal();
+DROP FUNCTION IF EXISTS child_first_full_graph_traversal() CASCADE;
 CREATE OR REPLACE FUNCTION child_first_full_graph_traversal ()
 	 RETURNS TABLE (
 	 child INT,
-	 path INT[]
+	 path LTREE
+	 --path INT[]
 )
 AS $$
 BEGIN
 RETURN QUERY
 WITH RECURSIVE traverse(node, path, cycle) AS (
-        SELECT task.node, ARRAY[task.node], false FROM task
+        SELECT 
+		task.parent, 
+		text2ltree(task.parent::TEXT),
+		--ARRAY[task.parent], 
+		false 
+	FROM task
         LEFT OUTER JOIN task AS t2
         ON task.parent = t2.node
         WHERE t2.node IS NULL
     UNION ALL
         SELECT DISTINCT task.node,
-               traverse.path || task.node,
-               task.node = ANY(traverse.path)
+               traverse.path || task.node::TEXT,
+               text2ltree(task.node::TEXT) @> traverse.path
+               --task.node = ANY(traverse.path)
         FROM traverse
         INNER JOIN task
         ON task.parent = traverse.node
         WHERE NOT cycle
 )
-SELECT traverse.node, traverse.path FROM traverse
-LEFT OUTER JOIN traverse AS any_cycles ON any_cycles.cycle = true
+SELECT traverse.node, traverse.path 
+FROM traverse
+LEFT OUTER JOIN traverse AS any_cycles 
+ON any_cycles.cycle = true
 WHERE any_cycles.cycle IS NULL
 GROUP BY traverse.node, traverse.path
-ORDER BY MAX(array_length(traverse.path, 1));
+ORDER BY MAX(nlevel(traverse.path));
+--ORDER BY MAX(array_length(traverse.path, 1));
 END; $$
 LANGUAGE 'plpgsql';
 
 SELECT * FROM child_first_full_graph_traversal();
 
--- get all distinct ancestors given descendent
-SELECT DISTINCT ancestor
-FROM child_first_full_graph_traversal(), LATERAL unnest(path) ancestor
-WHERE child = 57
+-- get all ancestors with ancestry given descendent
+SELECT DISTINCT child, ancestor, path AS ancestry, dist
+FROM child_first_full_graph_traversal() as t
+LEFT JOIN LATERAL 
+unnest(string_to_array(path::TEXT, '.')) -- for ltree
+--unnest(path) -- For pg array
+WITH ORDINALITY AS a(ancestor, dist) ON TRUE
+WHERE child = 48 
+AND child <> ancestor::INT
+ORDER BY dist;
+
+-- test creating a view to work with more quickly
+CREATE VIEW child_first_full_graph_traversal AS
+SELECT * FROM child_first_full_graph_traversal();
+SELECT * FROM child_first_full_graph_traversal;
 
 -------------------------------
 -- Child to Parent Traversal
@@ -250,20 +281,26 @@ DROP FUNCTION IF EXISTS child_to_parent_traversal(INT, INT);
 CREATE OR REPLACE FUNCTION child_to_parent_traversal (c INT, p INT)
 	 RETURNS TABLE (
 	 parent INT,
-	 path INT[]
+	 path LTREE
+	 --path INT[]
 )
 AS $$
 BEGIN
 RETURN QUERY
 WITH RECURSIVE traverse(node, path, cycle) AS (
-        SELECT task.node, ARRAY[task.node], false FROM task
+	SELECT task.node, 
+		text2ltree(task.node::TEXT),
+		--ARRAY[task.node], 
+		false 
+	FROM task
         LEFT OUTER JOIN task AS t2
         ON task.node = t2.parent
         WHERE task.node = c -- start
     UNION ALL
         SELECT DISTINCT task.parent,
-               traverse.path || task.parent,
-               task.parent = ANY(traverse.path)
+               traverse.path || task.parent::TEXT,
+	       text2ltree(task.parent::TEXT) @> traverse.path
+               --task.parent = ANY(traverse.path)
         FROM traverse
         INNER JOIN task
         ON task.node = traverse.node
@@ -274,14 +311,15 @@ LEFT OUTER JOIN traverse AS any_cycles ON any_cycles.cycle = true
 WHERE any_cycles.cycle IS NULL
 AND traverse.node = p -- end
 GROUP BY traverse.node, traverse.path
-ORDER BY MAX(array_length(traverse.path, 1));
+ORDER BY MAX(nlevel(traverse.path));
+--ORDER BY MAX(array_length(traverse.path, 1));
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM child_to_parent_traversal(171, -1);
+SELECT * FROM child_to_parent_traversal(36, 0);
 
 -- empty set confirms that there is no relation from child to parent
-SELECT * FROM child_to_parent_traversal(57, -1); -- ie cant get from 5 to 1
+SELECT * FROM child_to_parent_traversal(28, 7); -- ie cant get from 5 to 1
 
 -------------------------------
 -- Parent to Child Traversal
@@ -289,20 +327,26 @@ DROP FUNCTION IF EXISTS parent_to_child_traversal(INT, INT);
 CREATE OR REPLACE FUNCTION parent_to_child_traversal (p INT, c INT)
 	 RETURNS TABLE (
 	 child INT,
-	 path INT[]
+	 path LTREE
+	 --path INT[]
 )
 AS $$
 BEGIN
 RETURN QUERY
 WITH RECURSIVE traverse(node, path, cycle) AS (
-        SELECT task.node, ARRAY[task.node], false FROM task
+        SELECT task.parent, 
+		text2ltree(task.parent::TEXT),
+		--ARRAY[task.parent], 
+		false 
+	FROM task
         LEFT OUTER JOIN task AS t2
-        ON task.parent = t2.node
-        WHERE task.node = p -- start
+        ON task.node = t2.parent
+        WHERE task.parent = p -- start
     UNION ALL
         SELECT DISTINCT task.node,
-               traverse.path || task.node,
-               task.node = ANY(traverse.path)
+               traverse.path || task.node::TEXT,
+               text2ltree(task.node::TEXT) @> traverse.path
+               --task.node = ANY(traverse.path)
         FROM traverse
         INNER JOIN task
         ON task.parent = traverse.node
@@ -313,16 +357,17 @@ LEFT OUTER JOIN traverse AS any_cycles ON any_cycles.cycle = true
 WHERE any_cycles.cycle IS NULL
 AND traverse.node = c -- end
 GROUP BY traverse.node, traverse.path
-ORDER BY MAX(array_length(traverse.path, 1));
+ORDER BY MAX(nlevel(traverse.path));
+--ORDER BY MAX(array_length(traverse.path, 1));
 END; $$
 LANGUAGE 'plpgsql';
 
-SELECT * FROM parent_to_child_traversal(-1, 15);
+SELECT * FROM parent_to_child_traversal(0,36);
 
 -- test to make sure that the closure of plaths from A to B is the same as B to A
-SELECT * FROM parent_to_child_traversal(3,14)
+SELECT * FROM parent_to_child_traversal(0,36)
 UNION ALL
-SELECT * FROM child_to_parent_traversal(14,3);
+SELECT * FROM child_to_parent_traversal(36,0);
 
 
 -------------------------------
@@ -399,6 +444,21 @@ UNION ALL
 SELECT * FROM all_parents_within_n(6,2);
 
 -- get all children of 6 within 3 generations that are at least 1 gen away
-SELECT * FROM all_children_within_n(8, 3)
+SELECT * FROM all_children_within_n(3, 3)
 EXCEPT
-SELECT * FROM all_children_within_n(8, 1);
+SELECT * FROM all_children_within_n(3, 1);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---

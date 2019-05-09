@@ -2,8 +2,8 @@ import random, csv, string
 
 MIN_PER_RANK = 1
 MAX_PER_RANK = 5
-MIN_RANKS = 4
-MAX_RANKS = 6
+MIN_RANKS = 6
+MAX_RANKS = 7
 PERCENT = 50
 data = []
 
@@ -13,11 +13,11 @@ def rand():
 def random_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
-def generate_random_tree(csvWriter, dotFile, idx=0, parent=-1, depth=0, max_children=2, max_depth=2):
+def generate_random_tree(csvWriter, dotFile, idx=0, parent=0, depth=0, max_children=2, max_depth=2):
     n = MIN_PER_RANK + (rand() % (MAX_PER_RANK - MIN_PER_RANK + 1))
 
     new_idx = idx
-    for i in range(n):
+    for i in range(1, n):
         csvWriter.writerow((parent, idx + i, random_generator(10)))
         dotFile.write(" %d -> %d;\n" % (parent, idx + i))
 
@@ -32,6 +32,7 @@ def random_Tree(dotFile, csvFile):
     csvWriter = csv.writer(csvFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
     ranks = MIN_RANKS + (rand() % (MAX_RANKS - MIN_RANKS + 1))
+    idx = 0
 
     csvWriter.writerow(("parent", "child"))
     dotFile.write("digraph {\n")
