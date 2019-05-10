@@ -1,20 +1,23 @@
 import random, csv, string
 
-MIN_PER_RANK = 1
+MIN_PER_RANK = 3
 MAX_PER_RANK = 5
-MIN_RANKS = 6
-MAX_RANKS = 7
+MIN_RANKS = 4
+MAX_RANKS = 5
 PERCENT = 50
 data = []
 
 def rand():
     return int(random.random() * 1000000)
 
+def random_number_of_nodes():
+    return MIN_PER_RANK + (rand() % (MAX_PER_RANK - MIN_PER_RANK + 1))
+
 def random_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
 def generate_random_tree(csvWriter, dotFile, idx=0, parent=0, depth=0, max_children=2, max_depth=2):
-    n = MIN_PER_RANK + (rand() % (MAX_PER_RANK - MIN_PER_RANK + 1))
+    n = random_number_of_nodes()
 
     new_idx = idx
     for i in range(1, n):
@@ -32,7 +35,6 @@ def random_Tree(dotFile, csvFile):
     csvWriter = csv.writer(csvFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
     ranks = MIN_RANKS + (rand() % (MAX_RANKS - MIN_RANKS + 1))
-    idx = 0
 
     csvWriter.writerow(("parent", "child"))
     dotFile.write("digraph {\n")
@@ -53,7 +55,8 @@ def random_DAG(dotFile, csvFile):
     csvWriter.writerow(("parent", "child"))
     dotFile.write("digraph {\n")
 
-    new_nodes = MIN_PER_RANK + (rand() % (MAX_PER_RANK - MIN_PER_RANK + 1))
+    new_nodes = random_number_of_nodes()
+
     csvWriter.writerow((-1, 0, random_generator(10)))
     dotFile.write(" %d -> %d;\n" % (-1, 0))
     for k in range(0, new_nodes):
